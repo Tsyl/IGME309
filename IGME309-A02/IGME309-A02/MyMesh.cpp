@@ -458,7 +458,65 @@ void MyMesh::GenerateTorus(float a_fOuterRadius, float a_fInnerRadius, int a_nSu
 	Init();
 
 	// Replace this with your code
-	GenerateCube(a_fOuterRadius * 2.0f, a_v3Color);
+	vector3 middle(0, 0, 0);
+	float a_fSegmentRadius = (a_fOuterRadius - a_fInnerRadius)/2;
+	vector3 *pSegmentsShape = new glm::vec3[a_nSubdivisionsA];
+	vector3 *pSegmentsSection = new glm::vec3[a_nSubdivisionsB*a_nSubdivisionsB];
+
+	double incShape = glm::pi<double>() * 2 / a_nSubdivisionsA;
+	double incSection = glm::pi<double>() * 2 / a_nSubdivisionsB;
+	double thtShape = 0.0;
+	double thtSection = 0.0;
+
+	for (int i = 0; i < a_nSubdivisionsA; i++)
+	{
+		pSegmentsShape[i] = vector3(a_fInnerRadius + a_fSegmentRadius, 1, a_fInnerRadius + a_fSegmentRadius) * vector3(glm::cos(thtShape), 0, glm::sin(thtShape));
+		glm::mat4 rotation = ToMatrix4(glm::quat(thtShape, 0, 1, 0));
+		for (int j = 0; j < a_nSubdivisionsB; j++)
+		{
+			int nOfSegment = (i*a_nSubdivisionsA) + j;
+			pSegmentsSection[nOfSegment] = pSegmentsShape[i] + (a_fSegmentRadius * vector3(0, sin(thtSection), cos(thtSection)));
+			// Here is where rotation would go.
+			thtSection += incSection;
+		}
+		thtSection = 0.0;
+		thtShape += incShape;
+	}
+
+	for (int i = 0; i < a_nSubdivisionsA; i++)
+	{
+		int currentSection;
+		int nextSection;
+		
+		currentSection = i*a_nSubdivisionsA;
+
+		if (i == a_nSubdivisionsA - 1)
+		{
+			// Testing Triangles to check why the torus is not displaying correctly.
+			AddTri(pSegmentsShape[0], pSegmentsShape[i], middle);
+
+			// Torus rendering
+			for (int j = 0; j < a_nSubdivisionsB; j++)
+			{
+				AddQuad(pSegmentsSection[j + 1], pSegmentsSection[j], pSegmentsSection[currentSection + j + 1], pSegmentsSection[currentSection + j]);
+			}
+			break;
+		}
+
+		nextSection = (i + 1)*a_nSubdivisionsA;
+
+		// Testing Triangles to check why the torus is not displaying correctly.
+		AddTri(pSegmentsShape[i + 1], pSegmentsShape[i], middle);
+
+		// Torus rendering
+		for (int j = 0; j < a_nSubdivisionsB; j++)
+		{
+			AddQuad(pSegmentsSection[nextSection + j + 1], pSegmentsSection[nextSection + j], pSegmentsSection[currentSection + j + 1], pSegmentsSection[currentSection + j]);
+		}
+	}
+
+	delete[] pSegmentsShape;
+	delete[] pSegmentsSection;
 	// -------------------------------
 
 	// Adding information about color
@@ -483,7 +541,45 @@ void MyMesh::GenerateSphere(float a_fRadius, int a_nSubdivisions, vector3 a_v3Co
 	Init();
 
 	// Replace this with your code
-	GenerateCube(a_fRadius * 2.0f, a_v3Color);
+	float fValue = a_fRadius * 0.5f;
+	vector3 pTop(0, fValue, 0);
+	vector3 pBottom(0, -fValue, 0);
+	vector3 *pSegmentsPri = new glm::vec3[a_nSubdivisions];
+	vector3 *pSegmentsSec = new glm::vec3[a_nSubdivisions];
+
+	double inc = glm::pi<double>() * 2 / a_nSubdivisions;
+	double tht = 0.0;
+
+	for (int i = 0; i < a_nSubdivisions; i++)
+	{
+		double temptht = tht;
+		pSegmentsPri[i] = vector3(a_fRadius, 1, a_fRadius) * vector3(glm::cos(tht), fValue, glm::sin(tht));
+		tht = 0;
+		for (int i = 0; i < a_nSubdivisions; i++)
+		{
+			pSegmentsSec[i] = vector3(a_fRadius, 1, a_fRadius) * vector3(pSegmentsPri[i].x, glm::cos(tht), glm::sin(tht));
+			tht += inc;
+		}
+		tht = temptht;
+		tht += inc;
+	}
+
+	for (int i = 0; i < a_nSubdivisions; i++)
+	{
+		if (i == a_nSubdivisions - 1)
+		{
+			AddTri(pSegmentsPri[0], pSegmentsPri[i], pTop);
+			AddTri(pSegmentsSec[i], pSegmentsSec[0], pBottom);
+			AddQuad(pSegmentsSec[0], pSegmentsSec[i], pSegmentsPri[0], pSegmentsPri[i]);
+			break;
+		}
+		AddTri(pSegmentsPri[i + 1], pSegmentsPri[i], pTop);
+		AddTri(pSegmentsSec[i], pSegmentsSec[i + 1], pBottom);
+		AddQuad(pSegmentsSec[i + 1], pSegmentsSec[i], pSegmentsPri[i + 1], pSegmentsPri[i]);
+	}
+
+	delete[] pSegmentsPri;
+	delete[] pSegmentsSec;
 	// -------------------------------
 
 	// Adding information about color
